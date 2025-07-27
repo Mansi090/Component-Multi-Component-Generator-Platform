@@ -2,22 +2,23 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const app = express();
 require('dotenv').config();
 
-// ✅ CORS configuration for both local and deployed frontend
+const app = express();
+
+// ✅ Final CORS fix: Apply to *all* routes including /generate
 const allowedOrigins = [
-  'http://localhost:3000', // for local testing
-  'https://component-multi-component-generator-zeta.vercel.app' // deployed frontend
+  'http://localhost:3000',
+  'https://component-multi-component-generator-zeta.vercel.app',
+  'https://component-multi-compo-git-da1d98-mansi-dixits-projects-3335e2da.vercel.app' // <-- your preview deploy URL
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('CORS error: Not allowed origin'));
     }
   },
   credentials: true
@@ -25,7 +26,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ Connect to MongoDB
+// ✅ MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -33,15 +34,19 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => console.log('MongoDB connected'))
 .catch((err) => console.error('MongoDB connection error:', err));
 
-// ✅ Import routes
+// ✅ API Routes
 const authRoutes = require('./routes/auth');
 const sessionRoutes = require('./routes/sessions');
 const generateRoutes = require('./routes/generate');
 
-// ✅ Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/generate', generateRoutes);
+
+// ✅ Optional default route (just to avoid "Cannot GET /")
+app.get('/', (req, res) => {
+  res.send('Backend is running...');
+});
 
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
