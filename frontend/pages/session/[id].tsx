@@ -70,7 +70,7 @@ export default function SessionPage() {
     setInput('');
 
     try {
-      const res = await api.post('/generate', { prompt });
+      const res = await api.post('/api/generate', { prompt });
       setChat(prev => [...prev, { sender: 'ai', message: 'Here is your component!' }]);
       
       // Process the response to handle images properly

@@ -28,7 +28,7 @@ export const signup = (data: { email: string; password: string; name: string }) 
   api.post('/auth/signup', data);
 
 export const generate = (prompt: string) =>
-  api.post('/generate', { prompt });
+  api.post('/api/generate', { prompt });
 
 export const fetchSessions = () =>
   api.get('/sessions');
