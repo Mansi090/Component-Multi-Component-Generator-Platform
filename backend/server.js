@@ -11,6 +11,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://component-multi-component-generator-zeta.vercel.app',
   'https://component-multi-component-generator-platform-7zvlaxia3.vercel.app',
+  'https://component-multi-compo-git-da1d98-mansi-dixits-projects-3335e2da.vercel.app',
 ];
 
 app.use(cors({
