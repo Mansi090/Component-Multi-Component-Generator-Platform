@@ -6,18 +6,18 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ Final CORS fix: Apply to *all* routes including /generate
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://component-multi-component-generator-zeta.vercel.app',
-  'https://component-multi-compo-git-da1d98-mansi-dixits-projects-3335e2da.vercel.app' // <-- your preview deploy URL
-];
-
+// ✅ FIXED CORS: allow localhost, main domain, all *.vercel.app
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin || // allow server-to-server, curl, etc.
+      origin === 'http://localhost:3000' ||
+      origin === 'https://component-multi-component-generator-zeta.vercel.app' ||
+      /\.vercel\.app$/.test(origin) // allow any preview Vercel domain
+    ) {
       callback(null, true);
     } else {
+      console.error('CORS blocked for:', origin);
       callback(new Error('CORS error: Not allowed origin'));
     }
   },
@@ -26,7 +26,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ MongoDB connection
+// ✅ Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -34,18 +34,19 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => console.log('MongoDB connected'))
 .catch((err) => console.error('MongoDB connection error:', err));
 
-// ✅ API Routes
+// ✅ Import routes
 const authRoutes = require('./routes/auth');
 const sessionRoutes = require('./routes/sessions');
 const generateRoutes = require('./routes/generate');
 
+// ✅ Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/generate', generateRoutes);
 
-// ✅ Optional default route (just to avoid "Cannot GET /")
+// ✅ Fallback for `/`
 app.get('/', (req, res) => {
-  res.send('Backend is running...');
+  res.send('Backend is running');
 });
 
 // ✅ Start server
