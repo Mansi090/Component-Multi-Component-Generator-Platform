@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase';
 import Head from 'next/head';
 import { FiPlus, FiArrowRight, FiLoader } from 'react-icons/fi';
+import { api } from '../lib/api';
 
 interface Session {
   _id: string;
@@ -26,21 +27,12 @@ export default function Dashboard() {
     const fetchSessions = async () => {
       try {
         setLoading(true);
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/sessions`,
-          {
-            credentials: 'include',
-          }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch sessions');
-
-        const data = await response.json();
-        setSessions(data);
+        const response = await api.get('/api/sessions', {
+          withCredentials: true,
+        });
+        setSessions(response.data);
       } catch (err) {
         console.error('Error fetching sessions:', err);
-
         // Fallback mock data
         setSessions([
           {

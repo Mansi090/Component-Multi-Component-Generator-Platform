@@ -5,22 +5,34 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true, // only needed if using cookies (can be removed if not)
 });
 
-// Optional interceptor for handling 401
+// ✅ Attach token before every request
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token'); // or sessionStorage
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Optional interceptor for handling 401 errors
 api.interceptors.response.use(
-  res => res,
-  err => {
+  (res) => res,
+  (err) => {
     if (err.response?.status === 401) {
       console.warn('Unauthorized. Redirecting to login...');
-      // You can add redirect logic here if needed
+      // Optionally redirect to login or clear storage
     }
     return Promise.reject(err);
   }
 );
 
-// ✅ Correct API calls aligned with backend routes
+// ✅ API calls
 export const login = (data: { email: string; password: string }) =>
   api.post('/auth/login', data);
 
@@ -31,7 +43,7 @@ export const generate = (prompt: string) =>
   api.post('/api/generate', { prompt });
 
 export const fetchSessions = () =>
-  api.get('/sessions');
+  api.get('/api/sessions');
 
 export const createSession = (name: string) =>
-  api.post('/sessions', { sessionName: name });
+  api.post('/api/sessions', { sessionName: name });
