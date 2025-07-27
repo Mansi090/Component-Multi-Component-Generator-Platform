@@ -13,13 +13,11 @@ api.interceptors.response.use(
   err => {
     if (err.response?.status === 401) {
       console.warn('Unauthorized. Redirecting to login...');
-      // redirect if needed
     }
     return Promise.reject(err);
   }
 );
 
-// API endpoints
 export const login = (data: { email: string; password: string }) => api.post('/auth/login', data);
 export const signup = (data: { email: string; password: string; name: string }) => api.post('/auth/signup', data);
 export const generate = (prompt: string) => api.post('/generate', { prompt });
