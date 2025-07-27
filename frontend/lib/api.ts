@@ -40,10 +40,10 @@ export const signup = (data: { email: string; password: string; name: string }) 
   api.post('/auth/signup', data);
 
 export const generate = (prompt: string) =>
-  api.post('/generate', { prompt }); // ✅ Removed /api
+  api.post('/api/generate', { prompt });
 
 export const fetchSessions = () =>
-  api.get('/sessions'); // ✅ Removed /api
+  api.get('/api/sessions');
 
 export const createSession = (name: string) =>
-  api.post('/sessions', { sessionName: name }); // ✅ Removed /api
+  api.post('/api/sessions', { sessionName: name });
