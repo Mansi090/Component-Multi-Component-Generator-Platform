@@ -5,22 +5,21 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // optional if using cookies or sessions
+  withCredentials: true,
 });
 
-// Optional: Add a response interceptor for global error handling
 api.interceptors.response.use(
   res => res,
   err => {
     if (err.response?.status === 401) {
       console.warn('Unauthorized. Redirecting to login...');
-      // optionally redirect: window.location.href = '/login';
+      // redirect if needed
     }
     return Promise.reject(err);
   }
 );
 
-// Optional: Example API helper functions
+// API endpoints
 export const login = (data: { email: string; password: string }) => api.post('/auth/login', data);
 export const signup = (data: { email: string; password: string; name: string }) => api.post('/auth/signup', data);
 export const generate = (prompt: string) => api.post('/generate', { prompt });
