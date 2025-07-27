@@ -1,46 +1,40 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', // ✅ NO trailing slash, NO /api here
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Remove if you're not using cookies
+  withCredentials: true,
 });
 
-// ✅ Attach token before every request
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-// 🔐 Handle unauthorized errors globally (optional)
 api.interceptors.response.use(
-  (res) => res,
-  (err) => {
+  res => res,
+  err => {
     if (err.response?.status === 401) {
-      console.warn('Unauthorized. Redirecting to login...');
-      // Optional: redirect to login or clear token
+      console.warn('Unauthorized');
     }
     return Promise.reject(err);
   }
 );
 
-// ✅ API calls (routes now match your backend)
+// ✅ Your actual API endpoints
 export const login = (data: { email: string; password: string }) =>
-  api.post('/auth/login', data);
+  api.post('/api/auth/login', data);
 
 export const signup = (data: { email: string; password: string; name: string }) =>
-  api.post('/auth/signup', data);
+  api.post('/api/auth/signup', data);
 
 export const generate = (prompt: string) =>
-  api.post('/api/generate', { prompt });
+  api.post('/api/generate', { prompt }); // 👈 has /api here
 
 export const fetchSessions = () =>
   api.get('/api/sessions');
