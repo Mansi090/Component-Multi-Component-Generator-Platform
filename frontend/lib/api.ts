@@ -41,3 +41,9 @@ export const fetchSessions = () =>
 
 export const createSession = (name: string) =>
   api.post('/api/sessions', { sessionName: name });
+
+export const getSession = (id: string) =>
+  api.get(`/api/sessions/${id}`);
+
+export const updateSession = (id: string, data: { chatHistory: any[]; jsxCode: string; cssCode: string }) =>
+  api.put(`/api/sessions/${id}`, data);

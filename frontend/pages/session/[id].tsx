@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
-import { api } from '../../lib/api';
+import { api, getSession, updateSession } from '../../lib/api';
 import { FaUser, FaRobot, FaDownload, FaExpand, FaCompress } from 'react-icons/fa';
 import { javascript } from '@codemirror/lang-javascript';
 import { css as cssLang } from '@codemirror/lang-css';
@@ -11,67 +11,110 @@ const CodeMirror = dynamic(() => import('@uiw/react-codemirror'), { ssr: false }
 type ChatMessage = {
   sender: 'user' | 'ai';
   message: string;
+  timestamp?: Date;
 };
 
 export default function SessionPage() {
   const router = useRouter();
   const { id } = router.query;
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
-  const [chat, setChat] = useState<ChatMessage[]>([
-    { sender: 'user', message: 'Make a card with image and text' },
-    { sender: 'ai', message: 'Here is your card component!' },
-  ]);
-  const [jsxCode, setJsxCode] = useState(`<div class="card">
-    <div class="card-content">
-      <h3 class="card-title">Your Card Title</h3>
-      <p class="card-text">Describe what you want to see</p>
-    </div>
-  </div>`);
-  const [cssCode, setCssCode] = useState(`
-    .card {
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      overflow: hidden;
-      background-color: white;
-      max-width: 350px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s;
-    }
-    .card:hover {
-      transform: translateY(-5px);
-    }
-    .card-image {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-    }
-    .card-content {
-      padding: 16px;
-    }
-    .card-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: #2d3748;
-    }
-    .card-text {
-      color: #4a5568;
-      font-size: 0.875rem;
-    }
-  `);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [jsxCode, setJsxCode] = useState('');
+  const [cssCode, setCssCode] = useState('');
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sessionName, setSessionName] = useState('');
+
+  // Load session data when component mounts
+  useEffect(() => {
+    if (id) {
+      loadSessionData();
+    }
+  }, [id]);
+
+  const loadSessionData = async () => {
+    try {
+      const response = await getSession(id as string);
+      const session = response.data;
+      
+      setSessionName(session.sessionName);
+      setChat(session.chatHistory || []);
+      setJsxCode(session.jsxCode || '');
+      setCssCode(session.cssCode || '');
+    } catch (error) {
+      console.error('Failed to load session:', error);
+      // Set default data if session doesn't exist
+      setChat([
+        { sender: 'user', message: 'Make a card with image and text' },
+        { sender: 'ai', message: 'Here is your card component!' },
+      ]);
+      setJsxCode(`<div class="card">
+        <div class="card-content">
+          <h3 class="card-title">Your Card Title</h3>
+          <p class="card-text">Describe what you want to see</p>
+        </div>
+      </div>`);
+      setCssCode(`
+        .card {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          overflow: hidden;
+          background-color: white;
+          max-width: 350px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          transition: transform 0.2s;
+        }
+        .card:hover {
+          transform: translateY(-5px);
+        }
+        .card-image {
+          width: 100%;
+          height: 200px;
+          object-fit: cover;
+        }
+        .card-content {
+          padding: 16px;
+        }
+        .card-title {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin-bottom: 8px;
+          color: #2d3748;
+        }
+        .card-text {
+          color: #4a5568;
+          font-size: 0.875rem;
+        }
+      `);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveSessionData = async (newChat: ChatMessage[], newJsxCode: string, newCssCode: string) => {
+    try {
+      await updateSession(id as string, {
+        chatHistory: newChat,
+        jsxCode: newJsxCode,
+        cssCode: newCssCode,
+      });
+    } catch (error) {
+      console.error('Failed to save session:', error);
+    }
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const prompt = input.trim();
     if (!prompt) return;
 
-    setChat(prev => [...prev, { sender: 'user', message: prompt }]);
+    const userMessage = { sender: 'user' as const, message: prompt };
+    setChat(prev => [...prev, userMessage]);
     setInput('');
 
     try {
       const res = await api.post('/api/generate', { prompt });
-      setChat(prev => [...prev, { sender: 'ai', message: 'Here is your component!' }]);
+      const aiMessage = { sender: 'ai' as const, message: 'Here is your component!' };
       
       // Process the response to handle images properly
       let processedJsx = res.data.jsx || jsxCode;
@@ -89,11 +132,25 @@ export default function SessionPage() {
         );
       }
       
-      setJsxCode(processedJsx);
-      setCssCode(res.data.css || cssCode);
+      const newJsxCode = processedJsx;
+      const newCssCode = res.data.css || cssCode;
+      
+      setChat(prev => [...prev, aiMessage]);
+      setJsxCode(newJsxCode);
+      setCssCode(newCssCode);
+      
+      // Save the updated session data
+      const updatedChat = [...chat, userMessage, aiMessage];
+      await saveSessionData(updatedChat, newJsxCode, newCssCode);
+      
     } catch (error) {
       console.error('Generation failed:', error);
-      setChat(prev => [...prev, { sender: 'ai', message: 'Error generating code.' }]);
+      const errorMessage = { sender: 'ai' as const, message: 'Error generating code.' };
+      setChat(prev => [...prev, errorMessage]);
+      
+      // Save the error state too
+      const updatedChat = [...chat, userMessage, errorMessage];
+      await saveSessionData(updatedChat, jsxCode, cssCode);
     }
   };
 
@@ -135,11 +192,24 @@ export default function SessionPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-900 font-sans items-center justify-center">
+        <div className="text-blue-400 text-xl">Loading session...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-900 font-sans">
       {/* Chat Panel */}
       <div className="w-1/3 bg-gray-800 border-r border-gray-700 p-6 flex flex-col">
-        <h1 className="text-2xl font-bold mb-4 text-blue-400">Chat</h1>
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-blue-400">Chat</h1>
+          {sessionName && (
+            <p className="text-gray-400 text-sm mt-1">Session: {sessionName}</p>
+          )}
+        </div>
         <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
           {chat.map((msg, i) => (
             <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
