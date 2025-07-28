@@ -26,7 +26,7 @@ api.interceptors.response.use(
   }
 );
 
-// ✅ API endpoints (with /api prefix for deployed backend)
+// ✅ API endpoints (with /api prefix for deployed backend) - Updated
 export const login = (data: { email: string; password: string }) =>
   api.post('/api/auth/login', data);
 
