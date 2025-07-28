@@ -26,18 +26,18 @@ api.interceptors.response.use(
   }
 );
 
-// ✅ Fixed API endpoints (with /api prefix)
+// ✅ API endpoints (without /api prefix for deployed backend)
 export const login = (data: { email: string; password: string }) =>
-  api.post('/api/auth/login', data);
+  api.post('/auth/login', data);
 
 export const signup = (data: { email: string; password: string; name: string }) =>
-  api.post('/api/auth/signup', data);
+  api.post('/auth/signup', data);
 
 export const generate = (prompt: string) =>
-  api.post('/api/generate', { prompt });
+  api.post('/generate', { prompt });
 
 export const fetchSessions = () =>
-  api.get('/api/sessions');
+  api.get('/sessions');
 
 export const createSession = (name: string) =>
-  api.post('/api/sessions', { sessionName: name });
+  api.post('/sessions', { sessionName: name });
