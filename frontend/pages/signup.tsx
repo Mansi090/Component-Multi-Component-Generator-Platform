@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { api } from '../lib/api';
 import Head from 'next/head';
 import { FaGoogle, FaSpinner } from 'react-icons/fa';
 
@@ -15,14 +16,38 @@ export default function Signup() {
   });
   const router = useRouter();
 
+  const exchangeFirebaseToken = async (firebaseUser: any) => {
+    try {
+      const idToken = await firebaseUser.getIdToken();
+      // Use the development endpoint for testing
+      const response = await api.post('/api/auth/firebase-login-dev', { 
+        idToken,
+        email: firebaseUser.email 
+      });
+      const { token } = response.data;
+      localStorage.setItem('token', token);
+      return true;
+    } catch (err) {
+      console.error('Failed to exchange Firebase token:', err);
+      return false;
+    }
+  };
+
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(prev => ({ ...prev, email: true }));
     
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const success = await exchangeFirebaseToken(userCredential.user);
+      
+      if (success) {
+        router.push('/dashboard');
+      } else {
+        setError('Failed to authenticate with backend');
+        setLoading(prev => ({ ...prev, email: false }));
+      }
     } catch (err: any) {
       const message = err.code?.includes('auth/')
         ? err.code.replace('auth/', '').replace(/-/g, ' ')
@@ -38,8 +63,15 @@ export default function Signup() {
     
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      router.push('/dashboard');
+      const userCredential = await signInWithPopup(auth, provider);
+      const success = await exchangeFirebaseToken(userCredential.user);
+      
+      if (success) {
+        router.push('/dashboard');
+      } else {
+        setError('Failed to authenticate with backend');
+        setLoading(prev => ({ ...prev, google: false }));
+      }
     } catch (err: any) {
       setError('Google signup failed. Please try again.');
       setLoading(prev => ({ ...prev, google: false }));

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { api, getSession, updateSession } from '../../lib/api';
-import { FaUser, FaRobot, FaDownload, FaExpand, FaCompress } from 'react-icons/fa';
+import { auth } from '../../lib/firebase';
+import { FaUser, FaRobot, FaDownload, FaExpand, FaCompress, FaHome } from 'react-icons/fa';
 import { javascript } from '@codemirror/lang-javascript';
 import { css as cssLang } from '@codemirror/lang-css';
+import Link from 'next/link';
 
 const CodeMirror = dynamic(() => import('@uiw/react-codemirror'), { ssr: false });
 
@@ -25,12 +27,39 @@ export default function SessionPage() {
   const [loading, setLoading] = useState(true);
   const [sessionName, setSessionName] = useState('');
 
-  // Load session data when component mounts
+  // Check authentication and load session data
   useEffect(() => {
-    if (id) {
-      loadSessionData();
-    }
-  }, [id]);
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!firebaseUser) {
+        router.push('/login');
+        return;
+      }
+
+      // Check if we have a JWT token, if not, try to get one
+      const token = localStorage.getItem('token');
+      if (!token) {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const response = await api.post('/api/auth/firebase-login-dev', { 
+            idToken,
+            email: firebaseUser.email 
+          });
+          localStorage.setItem('token', response.data.token);
+        } catch (err) {
+          console.error('Failed to get JWT token:', err);
+          router.push('/login');
+          return;
+        }
+      }
+
+      // Load session data after authentication is confirmed
+      if (id) {
+        loadSessionData();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [id, router]);
 
   const loadSessionData = async () => {
     try {
@@ -202,6 +231,15 @@ export default function SessionPage() {
 
   return (
     <div className="flex h-screen bg-gray-900 font-sans">
+      {/* Home Button */}
+      <div className="absolute top-4 left-4 z-50">
+        <Link href="/dashboard" legacyBehavior>
+          <a className="flex items-center gap-2 bg-gray-800 hover:bg-blue-600 text-blue-400 hover:text-white px-4 py-2 rounded shadow transition font-bold text-lg">
+            <FaHome className="text-xl" />
+            Home
+          </a>
+        </Link>
+      </div>
       {/* Chat Panel */}
       <div className="w-1/3 bg-gray-800 border-r border-gray-700 p-6 flex flex-col">
         <div className="mb-4">

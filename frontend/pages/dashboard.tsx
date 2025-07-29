@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase';
 import Head from 'next/head';
-import { FiPlus, FiArrowRight, FiLoader } from 'react-icons/fi';
+import { FiPlus, FiArrowRight, FiLoader, FiLogOut } from 'react-icons/fi';
 import { api } from '../lib/api';
 
 interface Session {
@@ -16,46 +16,87 @@ export default function Dashboard() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (!user) {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!firebaseUser) {
         router.push('/login');
+        return;
       }
+
+      setUser(firebaseUser);
+      
+      // Check if we have a JWT token, if not, try to get one
+      const token = localStorage.getItem('token');
+      if (!token) {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const response = await api.post('/api/auth/firebase-login-dev', { 
+            idToken,
+            email: firebaseUser.email 
+          });
+          localStorage.setItem('token', response.data.token);
+        } catch (err) {
+          console.error('Failed to get JWT token:', err);
+          router.push('/login');
+          return;
+        }
+      }
+
+      // Fetch sessions after authentication is confirmed
+      fetchSessions();
     });
 
-    const fetchSessions = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get('/api/sessions', {
-          withCredentials: true,
-        });
-        setSessions(response.data);
-      } catch (err) {
-        console.error('Error fetching sessions:', err);
-        // Fallback mock data
-        setSessions([
-          {
-            _id: '1',
-            sessionName: 'UI Mockup Review',
-            lastModified: new Date(Date.now() - 86400000),
-            componentCount: 3,
-          },
-          {
-            _id: '2',
-            sessionName: 'Client Brainstorming',
-            lastModified: new Date(Date.now() - 3600000),
-            componentCount: 5,
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSessions();
     return () => unsubscribe();
   }, [router]);
+
+  const fetchSessions = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/sessions');
+      setSessions(response.data);
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+      // Fallback mock data
+      setSessions([
+        {
+          _id: '1',
+          sessionName: 'UI Mockup Review',
+          lastModified: new Date(Date.now() - 86400000),
+          componentCount: 3,
+        },
+        {
+          _id: '2',
+          sessionName: 'Client Brainstorming',
+          lastModified: new Date(Date.now() - 3600000),
+          componentCount: 5,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createNewSession = async () => {
+    try {
+      const sessionName = `New Session ${sessions.length + 1}`;
+      const response = await api.post('/api/sessions', { sessionName });
+      router.push(`/session/${response.data._id}`);
+    } catch (err) {
+      console.error('Error creating session:', err);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      localStorage.removeItem('token');
+      router.push('/login');
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
 
   const formatDate = (date?: Date) => {
     if (!date) return 'N/A';
@@ -81,14 +122,28 @@ export default function Dashboard() {
               <p className="text-gray-300 mt-1">
                 {loading ? 'Loading...' : `${sessions.length} session${sessions.length !== 1 ? 's' : ''}`}
               </p>
+              {user && (
+                <p className="text-gray-400 text-sm mt-1">
+                  Welcome, {user.email}
+                </p>
+              )}
             </div>
-            <button
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all"
-              onClick={() => router.push('/session/new')}
-            >
-              <FiPlus className="text-lg" />
-              <span>New Session</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all"
+                onClick={createNewSession}
+              >
+                <FiPlus className="text-lg" />
+                <span>New Session</span>
+              </button>
+              <button
+                className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all"
+                onClick={handleLogout}
+              >
+                <FiLogOut className="text-lg" />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -104,7 +159,7 @@ export default function Dashboard() {
                 </p>
                 <button
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow"
-                  onClick={() => router.push('/session/new')}
+                  onClick={createNewSession}
                 >
                   Create First Session
                 </button>

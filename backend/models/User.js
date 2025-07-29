@@ -13,6 +13,11 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  firebaseUid: {
+    type: String,
+    sparse: true,
+    index: true
+  },
 }, { timestamps: true });
 
 UserSchema.index({ email: 1 }, { unique: true });
